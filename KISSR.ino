@@ -39,7 +39,7 @@
 //-----------------------------------------------------------------------------
 //Define pin modes
 //-----------------------------------------------------------------------------
-  #define      PIN_LED       3     // status LED
+  #define      PIN_LED       12     // status LED
   #define      PIN_SS_RX     6
   #define      PIN_SS_TX     7
   #define      PIN_TEMPS     11
@@ -62,7 +62,7 @@
 //Debug turns on (1) or off (0) a bunch of debug statements. Normally use (0)
 //-----------------------------------------------------------------------------
   #define DEBUG          1       // reports code position for detailed debugging
-  #define DEBUG_NMEA     0       // echos recieved gps data
+  #define DEBUG_NMEA     1       // echos recieved gps data
 
 //-----------------------------------------------------------------------------
 //Initialise objects
@@ -114,9 +114,8 @@
   // defines all the variables used by sensors
   typedef struct {
     volatile uint8_t  err;               // error code is short int unsigned 
-//  uint8_t  acc[3];                     // acceleration *1000 (ie 1000=1.000)         - ADXL not currently used
     int16_t  t_ext, t_int, bmp_tmp;      // signed int - temp could be negative and is stored as *10 so cannot be a short (might expect temps <-25deg, which would be stored as -250)
-    uint16_t id=0;                       // id is unsigned int - no problem if it roles over
+    uint16_t id = 0;                     // id is unsigned int - no problem if it roles over
     uint32_t bmp_prs, bmp_prs_ref;       // pressure is a long int
     char latstr[12], lngstr[12];         // char strings to hold lat and long
   } data;
@@ -136,10 +135,9 @@ ISR(TIMER1_COMPA_vect) {
   
   cli();          // disable global interrupts   
 
-//  if (telem.err) {       //there is an error so blink off
     if (led_state) {     //led is on so needs to be blinked off
 
-      digitalWrite(PIN_LED, LOW);  //turn off led
+      digitalWrite(PIN_LED, LOW);        //turn off led
       led_state = false;
 
       TCCR1A = 0; 
@@ -150,6 +148,7 @@ ISR(TIMER1_COMPA_vect) {
       TIMSK1 = bit(OCIE1A);
       
     }
+    
     else {               //led is off so needs to be turned back on
       
       digitalWrite(PIN_LED, HIGH);  //turn off led
@@ -163,7 +162,6 @@ ISR(TIMER1_COMPA_vect) {
       TIMSK1 = bit(OCIE1A);  
    
     }
-//  }
 
   sei();          // enable global interrupts
 
@@ -179,10 +177,16 @@ void setup(){
   
   //set watchdog to 8s delay
   wdt_enable(WDTO_8S);
-  #if (DEBUG)
-    ss.println(F("&&setup()"));
-  #endif 
-  
+
+    //Set pin modes
+  pinMode(PIN_LED,           OUTPUT);   // set LED pin
+  pinMode(PIN_OpL_RESET,     OUTPUT);   // used to reset openlog to confirm ready status
+  pinMode(PIN_RADIO_TX,      OUTPUT);   // set radio output pin
+  pinMode(PIN_RADIO_EN,      OUTPUT);   // set radio output pin 
+  pinMode(PIN_SS_RX,         INPUT);    //  
+  pinMode(PIN_SS_TX,         OUTPUT);   //  
+
+
   //Begin things
   Serial.begin(9600);                 // start harware serial for GPS comms
   ss.begin(19200);                    // start software serial for debugging and logging
@@ -190,18 +194,16 @@ void setup(){
   I2c.timeOut(i2c_timeout);
   
   //Identify software version
+
+  #if (DEBUG)
+    ss.println(F("&&setup()"));
+  #endif 
+
   ss.println();
   ss.print(F("&&------ "));
   ss.print(SOFT_VERSION);
   ss.println(F(" by Gordon ------ "));
 
-  //Set pin modes
-  pinMode(PIN_LED,           OUTPUT);   // set LED pin
-  pinMode(PIN_OpL_RESET,     OUTPUT);   // used to reset openlog to confirm ready status
-  pinMode(PIN_RADIO_TX,      OUTPUT);   // set radio output pin
-  pinMode(PIN_RADIO_EN,      OUTPUT);   // set radio output pin 
-  pinMode(PIN_SS_RX,         INPUT);    //  
-  pinMode(PIN_SS_TX,         OUTPUT);   //  
 
   //Initialise some pins
   digitalWrite(PIN_RADIO_EN, LOW);  
