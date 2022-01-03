@@ -28,7 +28,8 @@
   #define PIN_RADIO_EN  10  
 
   #define DEBUG      1       // reports code position for detailed debugging
-  #define DEBUG_NMEA 0       // echos recieved gps data
+  #define DEBUG_NMEA 1       // echos recieved gps data
+  
   #define SLOW_BLINK 1       // semantic definition of led modes
   #define FAST_BLINK 2
   #define IN_FLIGHT  3
@@ -186,15 +187,17 @@ void loop(){
   #endif 
 
   uint32_t now = millis();
+  uint32_t gpsDataTime = now;
   
   while (1) {                                   //keep trying until we get readable data or timeout
 
-    // if we have serial data then check for coherent sentance
+    // if we have serial data then check for coherent sentence
     if (Serial.available()) {
 
       char c = Serial.read();
       errGPSData = false;
-            
+      gpsDataTime = millis();           
+      
       #if (DEBUG_NMEA)
         ss.write(c);
       #endif
@@ -209,16 +212,17 @@ void loop(){
         }
 
         // if it doesn't come then move on
-        else if (millis() - now > GPS_FIX_TIMEOUT) {
+        if (millis() - now > GPS_FIX_TIMEOUT) {
           errGPSFix = true;
           break;  // waited too long for a fix, move on
         }
       }
     }
 
-    // if there is no serial data, then give up for this loop if we have reached timeout
+    // No serial data recieved in this loop
+    // If we've been waiting too long then set errors and move on
     else {
-      if (millis() - now > GPS_DATA_TIMEOUT) {  
+      if (millis() - gpsDataTime > GPS_DATA_TIMEOUT) {  
         errGPSFix = true;
         errGPSData = true;  
         break;    
