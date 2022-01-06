@@ -29,7 +29,7 @@ uint16_t getChecksum (char *string) {
 
 void rttyTxString (char * string) {
 
-  wdt_reset();  // check in with watchdog
+//  wdt_reset();  // check in with watchdog
   
   #if (DEBUG) 
     ss.println(F("&&rttyTxString()"));
@@ -50,7 +50,7 @@ void rttyTxByte (char c) {
 // from http://ava.upuaut.net/?p=627
   
   uint8_t i;
-  rttyTxBit (0); // Start bit
+  rttyTxBit(0); // Start bit
    
   // Send bits for for char LSB first
   for (i = 0; i < 7; i++) {          // Change this here 7 or 8 for ASCII-7 / ASCII-8
@@ -69,8 +69,13 @@ void rttyTxBit (uint8_t bit) {
 // based on source from http://ava.upuaut.net/?p=627
 
   // frequency is centred on 434272MHz, bandwidth is 440
-  if (bit)  analogWrite(PIN_RADIO_TX, 47);  // 434272216Hz
-  else      analogWrite(PIN_RADIO_TX, 30);  // 434271776 Hz
+  if (bit) {
+    analogWrite(PIN_RADIO_TX, 47);  // 434272216Hz
+  } else {
+    analogWrite(PIN_RADIO_TX, 30);  // 434271776 Hz
+  }
   delay(20);                                //50 baud
+//  delayMicroseconds(10000); // For 50 Baud uncomment this and the line below.
+//  delayMicroseconds(10150); 
 
 }  

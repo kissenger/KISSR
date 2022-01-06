@@ -57,7 +57,7 @@ uint32_t bmpTemperature(){
   x2    = ((int32_t)mc << 11) / (x1 + md);
   b5    = (int32_t)x1 + x2;
   t     = ((int32_t)b5 + 8L) / 16L;         // temp from bmp180 module - it is degC*10
-/*  
+/*
   // don't delete
   ss.println(F("-getBMP_temp()----"));
   ss.print(F("&&ut   = "));  ss.println(ut);
@@ -65,7 +65,7 @@ uint32_t bmpTemperature(){
   ss.print(F("&&x2   = "));  ss.println(x2);
   ss.print(F("&&b5   = "));  ss.println(b5);
   ss.print(F("&&t    = "));  ss.println(t);    
-*/  
+*/
   return t;
 }
 //-------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ uint32_t bmpPressure(){
   x1    = (ut - ac6) * ac5 >> 15;
   x2    = ((int32_t)mc << 11) / (x1 + md);
   b5    = (int32_t)x1 + x2;
-/*  
+/*
   #if (DEBUG) 
     ss.println(F("-getBMP_press()----"));
     ss.print(F("&&ut   = "));  ss.println(ut);
@@ -107,7 +107,7 @@ uint32_t bmpPressure(){
     ss.print(F("&&x2   = "));  ss.println(x2);
     ss.print(F("&&b5   = "));  ss.println(b5);
   #endif 
-*/ 
+*/
 //calculate BMP180 pressure
   up = int32_t(readUp());
   b6 = (int32_t)b5 - 4000L;
@@ -124,7 +124,7 @@ uint32_t bmpPressure(){
     ss.print(F("&&x3   = "));  ss.println(x3);  
     ss.print(F("&&b3   = "));  ss.println(b3);  
   #endif
-*/ 
+*/
   x1 = ac3 * b6 >> 13;
   x2 = (b1 * (b6 * b6 >> 12)) >> 16;
   x3 = ((x1 + x2) + 2) >> 2;
@@ -141,7 +141,7 @@ uint32_t bmpPressure(){
     ss.print(F("&&b7   = "));  ss.println(b7);
     ss.print(F("&&prss = "));  ss.println(p);
   #endif 
-*/ 
+*/
   x1 = (p >> 8) * (p >> 8);
   x1 = ((int32_t)x1 * 3038L) >> 16;
   x2 = -(7357L * int32_t(p)) >> 16;
@@ -226,6 +226,7 @@ uint32_t readUp() {
 //process output
   result = ((uint32_t)buff[0] << 16 | (uint32_t)buff[1] << 8) | (uint32_t)buff[2];
   result >>= (8 - oss);
+
 /*
   // don't delete
   ss.println(F("-getBMP180_up()---"));  
@@ -244,10 +245,10 @@ uint32_t readUp() {
 
 void * i2cRead(uint8_t dev, uint8_t add, uint8_t num, uint8_t buff[]) {
 
-//  err_i2c_data = I2c.read(dev, add, num);
+  uint8_t err = I2c.read(dev, add, num);
 //  if (err_i2c_data > 1) err_i2c_data = 1;        // write function will return value 1-7 on error - reset it to 1
     
-  for (uint8_t i = 0; i < num; i++) {              //could use I2c.available loop as implemented in previous KISSR versions
+  for (uint8_t i = 0; i < num; i++) {              // could use I2c.available loop as implemented in previous KISSR versions
     buff[i] = I2c.receive(); 
   }
     
@@ -263,10 +264,4 @@ uint8_t i2cWrite(uint8_t DEVICE, int8_t address, int8_t val) {
 
   return I2c.write(DEVICE, address, val);
   
-  //debug
-//  ss.print(F("err_i2c_data="));
-//  ss.println(err_i2c_data);
-  
-//  if (err_i2c_data > 1) err_i2c_data = 1;        // write function will return value 1-7 on error - reset it to 1
-
 }

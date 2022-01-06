@@ -1,4 +1,61 @@
 
+
+void getGPSData(TinyGPSPlus & g, TinyGPSCustom & gfq, bool & errData, bool & errFix) {
+  
+  #if (DEBUG) 
+    ss.println(F("&&NMEA loop"));
+  #endif
+  
+  uint32_t now = millis();
+  uint32_t gpsDataTime = now;
+  
+  while (1) {                                   //keep trying until we get readable data or timeout
+
+    // if we have serial data then check for coherent sentence
+    if (Serial.available()) {
+      
+      gpsDataTime = millis();
+      errGPSData = false;      
+      char c = Serial.read();     
+      
+      #if (DEBUG_NMEA)
+        ss.write(c);
+      #endif
+      
+      //see if we got a complete, readable sentence
+      if (gps.encode(c)) {
+      
+        // hang around and wait for solid 3D fix with fresh data
+//        if (strcmp(gpsFixQuality.value(), "3") == 0 && gps.satellites.value() >= 5 && gps.location.age() < 2000) {
+        if (gps.satellites.value() >= 5 && gps.location.age() < 2000) {          
+          errGPSFix = false;
+          break;
+        }
+
+        // if it doesn't come then move on
+        if (millis() - now > GPS_FIX_TIMEOUT) {
+          errGPSFix = true;
+          break;  // waited too long for a fix, move on
+        }
+      }
+    }
+
+    // No serial data recieved in this loop
+    // If we've been waiting too long then set errors and move on
+    else {
+      if (millis() - gpsDataTime > GPS_DATA_TIMEOUT) {  
+        errGPSFix = true;
+        errGPSData = true;  
+        break;    
+      }   
+    }
+  }
+    
+}
+
+
+
+
 /********************************************************************************
 * GPS Routines:
 * 1) setGPS_power_save --> sends command to put GPS module into power saving mode
@@ -12,31 +69,28 @@
 
 //-------------------------------------------------------------------------------
 // Command to put gps module into power saving mode: UBX-CFG-RXM
-
+// Returns 1 if successful, 0 otherwise
 bool gpsSetPSM(){
 
   wdt_reset();  // check in with watchdog
   
   #if (DEBUG) 
-    ss.println(F("&&setGPS_power_save()"));
+    ss.println(F("&&setGPS_power_save(): "));
   #endif
 
   uint8_t setPSM[] = { 0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x01};  // Expected checksums: 0x22, 0x92 
 
   sendUBX(setPSM,  sizeof(setPSM)/ sizeof(uint8_t));
-                               
+     
   return getUBX_ACK(setPSM) == 1;
 
-//  #if (DEBUG)
-//    openlog.print(F("&&PSM_set_success = "));
-//    openlog.println(PSM_set_success);
-//  #endif  
 }
 
-
+//-------------------------------------------------------------------------------
+// Command to enable only GPS data (not GLONASS etc) - reqd to enable PSM: UBX-CFG-GNSS
+// Returns 1 if successful, 0 otherwise
 bool gpsSetGNSS() {    
-// command to enable only GPS data (not GLONASS etc) - reqd to enable
-// power saving mode: UBX-CFG-GNSS
+
 
   wdt_reset();  // check in with watchdog
   
@@ -55,31 +109,55 @@ bool gpsSetGNSS() {
   sendUBX(setGNSS,  sizeof(setGNSS)/ sizeof(uint8_t));                             
   return getUBX_ACK(setGNSS) == 1;
 
-//  #if (DEBUG)
-//    openlog.print(F("&&GNSS_set_success = "));
-//    openlog.println(GNSS_set_success);
-//  #endif
 }
 
+
+
 //-------------------------------------------------------------------------------
+// Command to enable only GPS data (not GLONASS etc) - reqd to enable PSM: UBX-RXM-PMREQ
+// Does not return any value
+
+bool gpsStatusPSM = false;
+bool gpsStatusFM = false;
+bool gpsStatusGNSS = false;  
 
 void gpsSleep() {
-// command gps unit to sleep: UBX-RXM-PMREQ
 
-  wdt_reset();  // check in with watchdog
   #if (DEBUG) 
     ss.println(F("&&setGPS_sleep()"));
   #endif
-    
-  uint8_t setSLEEP[] = { 0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 
-                         0x00, 0x00, 0x02, 0x00, 0x00, 0x00}; // Expected checksums: 0x4D, 0x3B
-    
-  sendUBX(setSLEEP,  sizeof(setSLEEP)/ sizeof(uint8_t));
-  //LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_OFF);
-  delay (500);
+  
+  if (gpsStatusPSM) {  
+    uint8_t setSLEEP[] = { 0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 
+                           0x00, 0x00, 0x02, 0x00, 0x00, 0x00}; // Expected checksums: 0x4D, 0x3B
+      
+    sendUBX(setSLEEP,  sizeof(setSLEEP)/ sizeof(uint8_t));
+//    delay (500);  // TODO: What is this delay for?
+  }
 
 }
 
+//-------------------------------------------------------------------------------
+// Attempts to set the required modes on the gps unit
+// Returns error code 1 if any of the modes failed to set correctly (0 otherwise)
+bool gpsSetModes() {
+
+  
+  if (!gpsStatusFM) {
+    gpsStatusFM = gpsSetFM(); 
+  }
+  
+  if (!gpsStatusGNSS) {
+    gpsStatusGNSS = gpsSetGNSS();      
+  }
+
+  if (!gpsStatusPSM) {
+    gpsStatusPSM = gpsSetPSM();
+  }
+  
+  return !gpsStatusFM | !gpsStatusGNSS | !gpsStatusPSM;
+
+}
 
 //-------------------------------------------------------------------------------
 
@@ -89,18 +167,10 @@ void gpsWake() {
   #if (DEBUG) 
     ss.println(F("&&setGPS_wake()"));
   #endif
-
-  /*
-  uint8_t setWAKE[] = { 0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00,  
-                        0x00, 0x00, 0x01, 0x00, 0x00, 0x00};
-                        
-  sendUBX(setWAKE,  sizeof(setWAKE)/ sizeof(uint8_t));
-  _delay_ms(500);
-  */
    
   Serial.flush();                 //flush the buffer
   Serial.write(0xFF);             //dummy message to wake up gps module if it was asleep
-  //LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_OFF);  
+
   delay(500);
   
 }
@@ -144,7 +214,6 @@ void gpsSetNMEA() {
   Serial.print(F("$PUBX,40,ZDA,0,0,0,0*44\r\n"));
   Serial.print(F("$PUBX,40,VTG,0,0,0,0*5E\r\n"));
   Serial.print(F("$PUBX,40,GSV,0,0,0,0*59\r\n"));
-//  Serial.print(F("$PUBX,40,GSA,0,0,0,0*4E\r\n"));
   Serial.print(F("$PUBX,40,RMC,0,0,0,0*47\r\n"));
 }
 
