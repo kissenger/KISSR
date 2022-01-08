@@ -6,6 +6,17 @@
 // 4) rtty_txbit --> transmits a bit
 //*******************************************************************************
 
+void enableTx() {
+  digitalWrite(PIN_RADIO_EN, HIGH);
+  analogWrite(PIN_RADIO_TX, 47);
+  delay(100);
+}
+
+void disableTx() {
+  digitalWrite(PIN_RADIO_EN, LOW);
+}
+  
+    
 uint16_t getChecksum (char *string) {
 //source: https://ukhas.org.uk/communication:protocol?s[]=checksum
 

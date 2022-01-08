@@ -1,6 +1,6 @@
 
 
-void getGPSData(TinyGPSPlus & g, TinyGPSCustom & gfq, bool & errData, bool & errFix) {
+void getGPSData(TinyGPSPlus & g, bool & errData, bool & errFix) {
   
   #if (DEBUG) 
     ss.println(F("&&NMEA loop"));
@@ -142,7 +142,13 @@ void gpsSleep() {
 // Returns error code 1 if any of the modes failed to set correctly (0 otherwise)
 bool gpsSetModes() {
 
-  
+  ss.print(F("gpsStatusFM: "));
+  ss.println(gpsStatusFM);
+  ss.print(F("gpsStatusGNSS: "));
+  ss.println(gpsStatusGNSS);  
+  ss.print(F("gpsStatusPSM: "));
+  ss.println(gpsStatusPSM);  
+
   if (!gpsStatusFM) {
     gpsStatusFM = gpsSetFM(); 
   }
